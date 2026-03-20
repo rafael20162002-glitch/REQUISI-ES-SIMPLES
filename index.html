@@ -3,121 +3,128 @@
 <head>
 <meta charset="UTF-8">
 <title>Editor de Requisições Médicas</title>
-
-<!-- Bibliotecas -->
-<script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
 <script src="https://mozilla.github.io/pdf.js/build/pdf.js"></script>
-
+<script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
 <style>
-body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
-.container { max-width: 800px; margin: 40px auto; background: #fff; padding: 25px; border-radius: 10px; box-shadow: 0 3px 8px rgba(0,0,0,0.15); }
-h1 { text-align: center; color: #2a2a2a; font-size: 28px; margin-bottom: 30px; }
-label { display: block; margin: 10px 0 5px 0; font-weight: bold; }
-input { width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-button { padding: 12px 25px; font-size: 16px; margin: 15px 10px 0 0; border: none; border-radius: 5px; cursor: pointer; background: #2a9df4; color: #fff; }
-button:hover { background: #1e7fc1; }
-#pdfContainer { border: 1px solid #ddd; margin-top: 20px; height: 600px; overflow: auto; }
-canvas { display: block; margin: 10px auto; }
+body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+.container { max-width: 900px; margin: 40px auto; background: #fff; padding: 25px; border-radius: 10px; box-shadow: 0 3px 8px rgba(0,0,0,0.15); }
+h1 { text-align: center; color: #2a2a2a; margin-bottom: 20px; }
+#pdfContainer { position: relative; border:1px solid #ccc; height: 700px; overflow:auto; }
+canvas { display:block; margin: 0 auto; }
+.pdf-field { position:absolute; border:1px solid #2a9df4; border-radius:4px; background:rgba(255,255,255,0.8); padding:2px; font-size:14px; }
+button { padding:10px 20px; margin:10px 5px; cursor:pointer; border:none; border-radius:5px; background:#2a9df4; color:#fff; font-size:16px; }
+button:hover { background:#1e7fc1; }
+label { font-weight:bold; display:block; margin-top:15px; }
 </style>
 </head>
 <body>
-
 <div class="container">
 <h1>Editor de Requisições Médicas</h1>
-
 <input type="file" id="upload" accept="application/pdf"/>
-
-<label>Nome do Paciente</label>
-<input type="text" id="nomePaciente"/>
-
-<label>Data de Nascimento (DD/MM/AAAA)</label>
-<input type="text" id="dataNasc"/>
-
-<label>Idade</label>
-<input type="text" id="idade" readonly/>
-
-<div>
-<button id="preencherPdf">Atualizar Preview</button>
+<div style="margin-top:10px;">
+<button id="baixarPdf">Baixar PDF Preenchido</button>
 <button id="imprimirPdf">Imprimir PDF</button>
 </div>
-
 <div id="pdfContainer"></div>
 </div>
 
 <script>
 let uploadedPDFBytes = null;
+let pdfDoc = null;
+let pdfLibDoc = null;
+let fields = []; // Array de objetos {input, page, x, y, width, height}
 
-// Função para calcular idade automaticamente
-function calcularIdade(dataStr) {
-    if (!dataStr) return '';
-    const partes = dataStr.split('/');
-    if (partes.length !== 3) return '';
-    const dia = parseInt(partes[0], 10);
-    const mes = parseInt(partes[1], 10) - 1;
-    const ano = parseInt(partes[2], 10);
-    const nascimento = new Date(ano, mes, dia);
-    const hoje = new Date();
-    let idade = hoje.getFullYear() - nascimento.getFullYear();
-    const m = hoje.getMonth() - nascimento.getMonth();
-    if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) idade--;
-    return idade >= 0 ? idade.toString() : '';
-}
-
-// Atualiza idade automaticamente ao digitar a data
-document.getElementById('dataNasc').addEventListener('input', () => {
-    const idade = calcularIdade(document.getElementById('dataNasc').value);
-    document.getElementById('idade').value = idade;
-});
-
-// Carregar arquivo PDF
-document.getElementById('upload').addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    uploadedPDFBytes = await file.arrayBuffer();
-    await renderPDF(uploadedPDFBytes);
-});
-
-// Renderizar PDF no preview
+// Função para renderizar PDF com PDF.js
 async function renderPDF(pdfBytes) {
-    const pdf = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+    const loadingTask = pdfjsLib.getDocument({data: pdfBytes});
+    pdfDoc = await loadingTask.promise;
     const container = document.getElementById('pdfContainer');
     container.innerHTML = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 1.5 });
+    fields = [];
+
+    for(let i=1; i<=pdfDoc.numPages; i++){
+        const page = await pdfDoc.getPage(i);
+        const viewport = page.getViewport({scale:1.5});
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         canvas.height = viewport.height;
         canvas.width = viewport.width;
-        await page.render({ canvasContext: context, viewport: viewport }).promise;
+        await page.render({canvasContext: context, viewport: viewport}).promise;
         container.appendChild(canvas);
     }
 }
 
-// Preencher PDF com campos do site
-document.getElementById('preencherPdf').addEventListener('click', async () => {
-    if (!uploadedPDFBytes) { alert("Faça upload do PDF primeiro!"); return; }
-    const pdfDoc = await PDFLib.PDFDocument.load(uploadedPDFBytes);
-    const form = pdfDoc.getForm();
-    try {
-        form.getTextField('nome_paciente').setText(document.getElementById('nomePaciente').value);
-        form.getTextField('data_nasc').setText(document.getElementById('dataNasc').value);
-        form.getTextField('idade').setText(document.getElementById('idade').value);
-    } catch (e) {
-        alert("Erro: verifique os nomes dos campos no PDF (nome_paciente, data_nasc, idade)");
-        return;
-    }
-    uploadedPDFBytes = await pdfDoc.save();
+// Carregar PDF e preparar PDF-LIB
+document.getElementById('upload').addEventListener('change', async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    uploadedPDFBytes = await file.arrayBuffer();
+    pdfLibDoc = await PDFLib.PDFDocument.load(uploadedPDFBytes);
     await renderPDF(uploadedPDFBytes);
+    addPDFFields();
 });
 
-// Imprimir PDF com qualidade
-document.getElementById('imprimirPdf').addEventListener('click', () => {
-    if (!uploadedPDFBytes) { alert("PDF não carregado"); return; }
-    const blob = new Blob([uploadedPDFBytes], { type: 'application/pdf' });
+// Criar campos sobre o PDF
+function addPDFFields() {
+    const container = document.getElementById('pdfContainer');
+    // Exemplo: posicionando campos manualmente sobre o PDF
+    // Ajuste x, y, width, height de acordo com seu PDF
+    const exemploCampos = [
+        {name:'nome_paciente', page:1, x:100, y:600, width:250, height:20},
+        {name:'data_nasc', page:1, x:100, y:570, width:120, height:20},
+        {name:'idade', page:1, x:250, y:570, width:50, height:20}
+    ];
+
+    exemploCampos.forEach(f=>{
+        const input = document.createElement('input');
+        input.type='text';
+        input.className='pdf-field';
+        input.style.left=f.x+'px';
+        input.style.top=f.y+'px';
+        input.style.width=f.width+'px';
+        input.style.height=f.height+'px';
+        container.appendChild(input);
+        fields.push({...f, input});
+        // Atualizar PDF-LIB quando digitar
+        input.addEventListener('input', updatePDFLibField);
+    });
+}
+
+// Atualizar campo no PDF-LIB
+async function updatePDFLibField(e){
+    const field = fields.find(f=>f.input===e.target);
+    if(!pdfLibDoc) return;
+    const form = pdfLibDoc.getForm();
+    let pdfField;
+    try{
+        pdfField = form.getTextField(field.name);
+        pdfField.setText(field.input.value);
+    }catch{
+        // Se não existir, cria
+        const page = pdfLibDoc.getPage(field.page-1);
+        pdfLibDoc.getForm().createTextField(field.name).setText(field.input.value);
+    }
+}
+
+// Baixar PDF preenchido
+document.getElementById('baixarPdf').addEventListener('click', async ()=>{
+    if(!pdfLibDoc){ alert("PDF não carregado"); return; }
+    const pdfBytes = await pdfLibDoc.save();
+    const blob = new Blob([pdfBytes], {type:'application/pdf'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'requisicao_preenchida.pdf';
+    a.click();
+});
+
+// Imprimir PDF
+document.getElementById('imprimirPdf').addEventListener('click', async ()=>{
+    if(!pdfLibDoc){ alert("PDF não carregado"); return; }
+    const pdfBytes = await pdfLibDoc.save();
+    const blob = new Blob([pdfBytes], {type:'application/pdf'});
     const url = URL.createObjectURL(blob);
     const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
+    iframe.style.display='none';
     iframe.src = url;
     document.body.appendChild(iframe);
     iframe.contentWindow.focus();
