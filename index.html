@@ -2,15 +2,36 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Requisição Médica</title>
+<title>Editor de Requisições Médicas</title>
 <style>
-body { font-family: Arial, sans-serif; margin:0; background:#f5f5f5; display:flex; justify-content:center; align-items:center; height:100vh; }
-iframe { border:1px solid #ccc; width:80%; height:90%; }
+body { margin:0; font-family: Arial, sans-serif; display:flex; height:100vh; background:#f5f5f5; }
+.sidebar { width:200px; background:#2a9df4; color:#fff; padding:20px; box-sizing:border-box; }
+.sidebar h2 { font-size:18px; margin-top:0; }
+.sidebar button { display:block; width:100%; padding:10px; margin:5px 0; border:none; border-radius:5px; background:#1e7fc1; color:#fff; cursor:pointer; text-align:left; }
+.sidebar button:hover { background:#1565a0; }
+.main { flex:1; display:flex; justify-content:center; align-items:center; padding:20px; box-sizing:border-box; }
+iframe { border:1px solid #ccc; width:100%; height:90%; }
 </style>
 </head>
 <body>
-<iframe src="modelo.pdf" type="application/pdf">
-<p>Seu navegador não suporta PDF embutido. <a href="modelo.pdf" target="_blank">Clique aqui para abrir o PDF</a>.</p>
-</iframe>
+
+<div class="sidebar">
+<h2>Requisições</h2>
+<button onclick="carregarPDF('modelo.pdf')">Requisição 1</button>
+<button onclick="carregarPDF('requisicao2.pdf')">Requisição 2</button>
+<button onclick="carregarPDF('requisicao3.pdf')">Requisição 3</button>
+</div>
+
+<div class="main">
+<iframe id="pdfViewer" src="modelo.pdf"></iframe>
+</div>
+
+<script>
+function carregarPDF(arquivo){
+    const iframe = document.getElementById('pdfViewer');
+    iframe.src = arquivo;
+}
+</script>
+
 </body>
 </html>
