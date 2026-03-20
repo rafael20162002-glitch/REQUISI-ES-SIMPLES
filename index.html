@@ -6,44 +6,48 @@
 <script src="https://mozilla.github.io/pdf.js/build/pdf.js"></script>
 <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
 <style>
-body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+body { font-family: Arial, sans-serif; margin: 0; background: #f5f5f5; }
 .container { max-width: 900px; margin: 40px auto; background: #fff; padding: 25px; border-radius: 10px; box-shadow: 0 3px 8px rgba(0,0,0,0.15); }
 h1 { text-align: center; color: #2a2a2a; margin-bottom: 20px; }
-#pdfContainer { position: relative; border:1px solid #ccc; height: 700px; overflow:auto; }
-canvas { display:block; margin: 0 auto; }
-.pdf-field { position:absolute; border:1px solid #2a9df4; border-radius:4px; background:rgba(255,255,255,0.8); padding:2px; font-size:14px; }
+#pdfContainer { position: relative; border: 1px solid #ccc; height: 700px; overflow: auto; }
+canvas { display: block; margin: 0 auto; }
+.pdf-field { position: absolute; border:1px solid #2a9df4; border-radius:4px; background:rgba(255,255,255,0.8); padding:2px; font-size:14px; }
 button { padding:10px 20px; margin:10px 5px; cursor:pointer; border:none; border-radius:5px; background:#2a9df4; color:#fff; font-size:16px; }
 button:hover { background:#1e7fc1; }
-label { font-weight:bold; display:block; margin-top:15px; }
 </style>
 </head>
 <body>
 <div class="container">
 <h1>Editor de Requisições Médicas</h1>
-<input type="file" id="upload" accept="application/pdf"/>
-<div style="margin-top:10px;">
+
+<div style="margin-bottom:10px;">
 <button id="baixarPdf">Baixar PDF Preenchido</button>
 <button id="imprimirPdf">Imprimir PDF</button>
 </div>
+
 <div id="pdfContainer"></div>
 </div>
 
 <script>
-let uploadedPDFBytes = null;
-let pdfDoc = null;
 let pdfLibDoc = null;
-let fields = []; // Array de objetos {input, page, x, y, width, height}
+let fields = [];
+const pdfURL = 'modelo.pdf'; // Coloque aqui o caminho do seu PDF de modelo
 
-// Função para renderizar PDF com PDF.js
+// Carregar PDF ao abrir a página
+async function carregarPDF() {
+    const arrayBuffer = await fetch(pdfURL).then(res => res.arrayBuffer());
+    pdfLibDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+    await renderPDF(arrayBuffer);
+    addPDFFields();
+}
+
+// Renderizar PDF no container
 async function renderPDF(pdfBytes) {
-    const loadingTask = pdfjsLib.getDocument({data: pdfBytes});
-    pdfDoc = await loadingTask.promise;
+    const pdf = await pdfjsLib.getDocument({data: pdfBytes}).promise;
     const container = document.getElementById('pdfContainer');
     container.innerHTML = '';
-    fields = [];
-
-    for(let i=1; i<=pdfDoc.numPages; i++){
-        const page = await pdfDoc.getPage(i);
+    for(let i=1;i<=pdf.numPages;i++){
+        const page = await pdf.getPage(i);
         const viewport = page.getViewport({scale:1.5});
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
@@ -54,28 +58,15 @@ async function renderPDF(pdfBytes) {
     }
 }
 
-// Carregar PDF e preparar PDF-LIB
-document.getElementById('upload').addEventListener('change', async (e)=>{
-    const file = e.target.files[0];
-    if(!file) return;
-    uploadedPDFBytes = await file.arrayBuffer();
-    pdfLibDoc = await PDFLib.PDFDocument.load(uploadedPDFBytes);
-    await renderPDF(uploadedPDFBytes);
-    addPDFFields();
-});
-
-// Criar campos sobre o PDF
-function addPDFFields() {
+// Adicionar campos sobre o PDF
+function addPDFFields(){
     const container = document.getElementById('pdfContainer');
-    // Exemplo: posicionando campos manualmente sobre o PDF
-    // Ajuste x, y, width, height de acordo com seu PDF
-    const exemploCampos = [
+    const camposPDF = [
         {name:'nome_paciente', page:1, x:100, y:600, width:250, height:20},
         {name:'data_nasc', page:1, x:100, y:570, width:120, height:20},
         {name:'idade', page:1, x:250, y:570, width:50, height:20}
     ];
-
-    exemploCampos.forEach(f=>{
+    camposPDF.forEach(f=>{
         const input = document.createElement('input');
         input.type='text';
         input.className='pdf-field';
@@ -84,25 +75,19 @@ function addPDFFields() {
         input.style.width=f.width+'px';
         input.style.height=f.height+'px';
         container.appendChild(input);
-        fields.push({...f, input});
-        // Atualizar PDF-LIB quando digitar
-        input.addEventListener('input', updatePDFLibField);
+        fields.push({...f,input});
+        input.addEventListener('input', ()=>updatePDFField(f.name, input.value));
     });
 }
 
 // Atualizar campo no PDF-LIB
-async function updatePDFLibField(e){
-    const field = fields.find(f=>f.input===e.target);
+function updatePDFField(name, value){
     if(!pdfLibDoc) return;
     const form = pdfLibDoc.getForm();
-    let pdfField;
     try{
-        pdfField = form.getTextField(field.name);
-        pdfField.setText(field.input.value);
+        form.getTextField(name).setText(value);
     }catch{
-        // Se não existir, cria
-        const page = pdfLibDoc.getPage(field.page-1);
-        pdfLibDoc.getForm().createTextField(field.name).setText(field.input.value);
+        form.createTextField(name).setText(value);
     }
 }
 
@@ -130,6 +115,8 @@ document.getElementById('imprimirPdf').addEventListener('click', async ()=>{
     iframe.contentWindow.focus();
     iframe.contentWindow.print();
 });
+
+carregarPDF();
 </script>
 </body>
 </html>
