@@ -2,121 +2,15 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Editor de Requisições Médicas</title>
-<script src="https://mozilla.github.io/pdf.js/build/pdf.js"></script>
-<script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+<title>Requisição Médica</title>
 <style>
-body { font-family: Arial, sans-serif; margin: 0; background: #f5f5f5; }
-.container { max-width: 900px; margin: 40px auto; background: #fff; padding: 25px; border-radius: 10px; box-shadow: 0 3px 8px rgba(0,0,0,0.15); }
-h1 { text-align: center; color: #2a2a2a; margin-bottom: 20px; }
-#pdfContainer { position: relative; border: 1px solid #ccc; height: 700px; overflow: auto; }
-canvas { display: block; margin: 0 auto; }
-.pdf-field { position: absolute; border:1px solid #2a9df4; border-radius:4px; background:rgba(255,255,255,0.8); padding:2px; font-size:14px; }
-button { padding:10px 20px; margin:10px 5px; cursor:pointer; border:none; border-radius:5px; background:#2a9df4; color:#fff; font-size:16px; }
-button:hover { background:#1e7fc1; }
+body { font-family: Arial, sans-serif; margin:0; background:#f5f5f5; display:flex; justify-content:center; align-items:center; height:100vh; }
+iframe { border:1px solid #ccc; width:80%; height:90%; }
 </style>
 </head>
 <body>
-<div class="container">
-<h1>Editor de Requisições Médicas</h1>
-
-<div style="margin-bottom:10px;">
-<button id="baixarPdf">Baixar PDF Preenchido</button>
-<button id="imprimirPdf">Imprimir PDF</button>
-</div>
-
-<div id="pdfContainer"></div>
-</div>
-
-<script>
-let pdfLibDoc = null;
-let fields = [];
-const pdfURL = 'modelo.pdf'; // Coloque aqui o caminho do seu PDF de modelo
-
-// Carregar PDF ao abrir a página
-async function carregarPDF() {
-    const arrayBuffer = await fetch(pdfURL).then(res => res.arrayBuffer());
-    pdfLibDoc = await PDFLib.PDFDocument.load(arrayBuffer);
-    await renderPDF(arrayBuffer);
-    addPDFFields();
-}
-
-// Renderizar PDF no container
-async function renderPDF(pdfBytes) {
-    const pdf = await pdfjsLib.getDocument({data: pdfBytes}).promise;
-    const container = document.getElementById('pdfContainer');
-    container.innerHTML = '';
-    for(let i=1;i<=pdf.numPages;i++){
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({scale:1.5});
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        await page.render({canvasContext: context, viewport: viewport}).promise;
-        container.appendChild(canvas);
-    }
-}
-
-// Adicionar campos sobre o PDF
-function addPDFFields(){
-    const container = document.getElementById('pdfContainer');
-    const camposPDF = [
-        {name:'nome_paciente', page:1, x:100, y:600, width:250, height:20},
-        {name:'data_nasc', page:1, x:100, y:570, width:120, height:20},
-        {name:'idade', page:1, x:250, y:570, width:50, height:20}
-    ];
-    camposPDF.forEach(f=>{
-        const input = document.createElement('input');
-        input.type='text';
-        input.className='pdf-field';
-        input.style.left=f.x+'px';
-        input.style.top=f.y+'px';
-        input.style.width=f.width+'px';
-        input.style.height=f.height+'px';
-        container.appendChild(input);
-        fields.push({...f,input});
-        input.addEventListener('input', ()=>updatePDFField(f.name, input.value));
-    });
-}
-
-// Atualizar campo no PDF-LIB
-function updatePDFField(name, value){
-    if(!pdfLibDoc) return;
-    const form = pdfLibDoc.getForm();
-    try{
-        form.getTextField(name).setText(value);
-    }catch{
-        form.createTextField(name).setText(value);
-    }
-}
-
-// Baixar PDF preenchido
-document.getElementById('baixarPdf').addEventListener('click', async ()=>{
-    if(!pdfLibDoc){ alert("PDF não carregado"); return; }
-    const pdfBytes = await pdfLibDoc.save();
-    const blob = new Blob([pdfBytes], {type:'application/pdf'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'requisicao_preenchida.pdf';
-    a.click();
-});
-
-// Imprimir PDF
-document.getElementById('imprimirPdf').addEventListener('click', async ()=>{
-    if(!pdfLibDoc){ alert("PDF não carregado"); return; }
-    const pdfBytes = await pdfLibDoc.save();
-    const blob = new Blob([pdfBytes], {type:'application/pdf'});
-    const url = URL.createObjectURL(blob);
-    const iframe = document.createElement('iframe');
-    iframe.style.display='none';
-    iframe.src = url;
-    document.body.appendChild(iframe);
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
-});
-
-carregarPDF();
-</script>
+<iframe src="modelo.pdf" type="application/pdf">
+<p>Seu navegador não suporta PDF embutido. <a href="modelo.pdf" target="_blank">Clique aqui para abrir o PDF</a>.</p>
+</iframe>
 </body>
 </html>
